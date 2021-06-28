@@ -6,6 +6,7 @@ using System.Text;
 using UnityEngine;
 using Rnd = UnityEngine.Random;
 using KModkit;
+using System.Text.RegularExpressions;
 
 public class GoModuleScript : MonoBehaviour
 {
@@ -32,6 +33,7 @@ public class GoModuleScript : MonoBehaviour
     private List<int> startPos = new List<int>();
     bool thirdZero = false;
     bool sixthZero = false;
+    bool moduleSolved = false;
 
     void Start()
     {
@@ -101,13 +103,13 @@ public class GoModuleScript : MonoBehaviour
         {
             //black wins (1)
             winner = 1;
-            Debug.LogFormat("[Go #{0}] Battery count ({1}) is even.  Black must win.", moduleId, batteries);
+            Debug.LogFormat("[Go #{0}] Battery count ({1}) is even.  Black must capture.", moduleId, batteries);
         }
         else
         {
             //white wins (2)
             winner = 2;
-            Debug.LogFormat("[Go #{0}] Battery count ({1}) is odd.  White must win.", moduleId, batteries);
+            Debug.LogFormat("[Go #{0}] Battery count ({1}) is odd.  White must capture.", moduleId, batteries);
         }
     }
 
@@ -120,6 +122,7 @@ public class GoModuleScript : MonoBehaviour
 
     void Solve()
     {
+        moduleSolved = true;
         for (int i = 0; i < stoneData.Length; i++)
         {
             if (stoneData[i] == 1)
@@ -298,136 +301,142 @@ public class GoModuleScript : MonoBehaviour
 
     IEnumerator ResetBoard()
     {
-        allowedToPlace = false;
-        yield return new WaitForSeconds(1.0f);
-        foreach (var stone in stoneObjects)
+        if (!moduleSolved)
         {
-            if (stone.activeInHierarchy)
+            allowedToPlace = false;
+            yield return new WaitForSeconds(1.0f);
+            foreach (var stone in stoneObjects)
             {
-                stone.SetActive(false);
-                yield return new WaitForSeconds(0.05f);
+                if (stone.activeInHierarchy)
+                {
+                    stone.SetActive(false);
+                    yield return new WaitForSeconds(0.05f);
+                }
             }
+            for (int i = 0; i < stoneData.Length; i++)
+            {
+                stoneData[i] = 0;
+            }
+            if (genBoard != null)
+            {
+                StopCoroutine(genBoard);
+            }
+            genBoard = GenerateBoard();
+            StartCoroutine(genBoard);
         }
-        for (int i = 0; i < stoneData.Length; i++)
-        {
-            stoneData[i] = 0;
-        }
-        if (genBoard != null)
-        {
-            StopCoroutine(genBoard);
-        }
-        genBoard = GenerateBoard();
-        StartCoroutine(genBoard);
     }
 
     IEnumerator GenerateBoard()
     {
-        TryAgain:
-        StartingPosPlaced = false;
-        ClearBoard();
-        List<int> generatedStones = new List<int>();
-        generatedStones.Clear();
-        int randomStoneCount = Rnd.Range(10, 18);
-        for (int i = 0; i < randomStoneCount * 2;)
+        if (!moduleSolved)
         {
-            int randomStoneNum = Rnd.Range(0, 80);
-            if (randomStoneNum == startPos[0] && startPos.Count == 1)
+            TryAgain:
+            StartingPosPlaced = false;
+            ClearBoard();
+            List<int> generatedStones = new List<int>();
+            generatedStones.Clear();
+            int randomStoneCount = Rnd.Range(10, 18);
+            for (int i = 0; i < randomStoneCount * 2;)
             {
-                //dont place here
-            }
-            else if (stoneData[randomStoneNum] == 0)
-            {
-                if (i % 2 == 0)
+                int randomStoneNum = Rnd.Range(0, 80);
+                if (randomStoneNum == startPos[0] && startPos.Count == 1)
                 {
-                    stoneData[randomStoneNum] = 1;
-                    generatedStones.Add(randomStoneNum);
+                    //dont place here
                 }
-                else
+                else if (stoneData[randomStoneNum] == 0)
                 {
-                    stoneData[randomStoneNum] = 2;
-                    generatedStones.Add(randomStoneNum);
-                }
-                i++;
-            }
-        }
-        if (FindCaptures().Any())
-        {
-            goto TryAgain;
-        }
-        int blackCount = 0;
-        int whiteCount = 0;
-        for (int i = 0; i < 9; i++)
-        {
-            for (int j = 0; j < 9; j++)
-            {
-                if (i == 0 || i == 8 || j == 0 || j == 8)
-                {
-                    if (stoneData[i * 9 + j] == 1)
+                    if (i % 2 == 0)
                     {
-                        blackCount++;
+                        stoneData[randomStoneNum] = 1;
+                        generatedStones.Add(randomStoneNum);
                     }
-                    else if (stoneData[i * 9 + j] == 2)
+                    else
                     {
-                        whiteCount++;
+                        stoneData[randomStoneNum] = 2;
+                        generatedStones.Add(randomStoneNum);
+                    }
+                    i++;
+                }
+            }
+            if (FindCaptures().Any())
+            {
+                goto TryAgain;
+            }
+            int blackCount = 0;
+            int whiteCount = 0;
+            for (int i = 0; i < 9; i++)
+            {
+                for (int j = 0; j < 9; j++)
+                {
+                    if (i == 0 || i == 8 || j == 0 || j == 8)
+                    {
+                        if (stoneData[i * 9 + j] == 1)
+                        {
+                            blackCount++;
+                        }
+                        else if (stoneData[i * 9 + j] == 2)
+                        {
+                            whiteCount++;
+                        }
                     }
                 }
             }
-        }
-        if (blackCount > whiteCount)
-        {
-            goesFirst = 1;
-            //black goes first
-        }
-        else if (whiteCount > blackCount)
-        {
-            goesFirst = 2;
-            //white goes first
-        }
-        else
-        {
-            //same border count
-            goto TryAgain;
-        }
-        if (startPos.Count == 1)
-        {
-            stoneData[startPos[0]] = goesFirst;
-        }
-        if (FindCaptures().Any())
-        {
-            goto TryAgain;
-        }
-        if (startPos.Count == 1)
-        {
-            stoneData[startPos[0]] = 0;
-        }
-        LogBoard();
-        if (goesFirst == 1)
-        {
-            Debug.LogFormat("[Go #{0}] The border contains more black pieces than white pieces.  Black goes first.", moduleId);
-        }
-        else
-        {
-            Debug.LogFormat("[Go #{0}] The border contains more white pieces than black pieces.  White goes first.", moduleId);
-        }
+            if (blackCount > whiteCount)
+            {
+                goesFirst = 1;
+                //black goes first
+            }
+            else if (whiteCount > blackCount)
+            {
+                goesFirst = 2;
+                //white goes first
+            }
+            else
+            {
+                //same border count
+                goto TryAgain;
+            }
+            if (startPos.Count == 1)
+            {
+                stoneData[startPos[0]] = goesFirst;
+            }
+            if (FindCaptures().Any())
+            {
+                goto TryAgain;
+            }
+            if (startPos.Count == 1)
+            {
+                stoneData[startPos[0]] = 0;
+            }
+            LogBoard();
+            if (goesFirst == 1)
+            {
+                Debug.LogFormat("[Go #{0}] The border contains more black pieces than white pieces.  Black goes first.", moduleId);
+            }
+            else
+            {
+                Debug.LogFormat("[Go #{0}] The border contains more white pieces than black pieces.  White goes first.", moduleId);
+            }
 
-        generatedStones.Sort();
-        for (int i = 0; i < generatedStones.Count; i++)
-        {
-            var stone = generatedStones[i];
-            if (stoneData[stone] == 1)
+            generatedStones.Sort();
+            for (int i = 0; i < generatedStones.Count; i++)
             {
-                stoneObjects[stone].SetActive(true);
-                stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[1];
-                yield return new WaitForSeconds(0.05f);
+                var stone = generatedStones[i];
+                if (stoneData[stone] == 1)
+                {
+                    stoneObjects[stone].SetActive(true);
+                    stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[1];
+                    yield return new WaitForSeconds(0.05f);
+                }
+                if (stoneData[stone] == 2)
+                {
+                    stoneObjects[stone].SetActive(true);
+                    stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[2];
+                    yield return new WaitForSeconds(0.05f);
+                }
             }
-            if (stoneData[stone] == 2)
-            {
-                stoneObjects[stone].SetActive(true);
-                stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[2];
-                yield return new WaitForSeconds(0.05f);
-            }
+            allowedToPlace = true;
         }
-        allowedToPlace = true;
     }
 
     void LogBoard()
@@ -454,11 +463,6 @@ public class GoModuleScript : MonoBehaviour
             }
         }
         Debug.LogFormat(@"[Go #{0}]=svg[Board:]<svg xmlns='http://www.w3.org/2000/svg' viewBox='-.5 -.5 9 9' stroke='black' stroke-width='.05'>{1}</svg>", moduleId, svg.ToString());
-    }
-
-    void WhoGoesFirst()
-    {
-
     }
 
     List<List<int>> FindCaptures()
@@ -506,5 +510,27 @@ public class GoModuleScript : MonoBehaviour
         {
             yield return stone + 1;
         }
+    }
+
+#pragma warning disable 0414
+    private readonly string TwitchHelpMessage = "!{0} B4 C5 [click the points in those positions; column first]";
+#pragma warning restore 0414
+
+    private IEnumerator ProcessTwitchCommand(string command)
+    {
+        var btns = new List<KMSelectable>();
+        foreach (var piece in command.Split(' '))
+        {
+            if (piece.Trim().Length == 0)
+                continue;
+            Match m = Regex.Match(piece, @"^\s*([A-I])([1-9])\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+            if (!m.Success)
+                yield break;
+            if (btns.Count == 0)
+                yield return null;
+            btns.Add(stoneSelectables[m.Groups[1].Value.ToLowerInvariant()[0] - 'a' + 9 * (m.Groups[2].Value[0] - '1')]);
+        }
+        if (btns.Count > 0)
+            yield return btns;
     }
 }
