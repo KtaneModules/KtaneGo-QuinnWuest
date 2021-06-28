@@ -17,23 +17,62 @@ public class GoModuleScript : MonoBehaviour
     public GameObject[] stoneObjects;
     public Material[] stoneMats;
     public int[] stoneData = new int[81]; //0 = none, 1 = black, 2 = white
-
     static int moduleIdCounter = 1;
     int moduleId;
     private bool allowedToPlace;
     private int stoneNumber;
     private int winner; //1 = black, 2 = white
     private int goesFirst; //1 = black, 2 = white
-
     private bool TurnDecided;
+    private bool StartingPosPlaced;
     private int TurnIndicator; // n%2+1 = 1:black, n%2+1 = 2:white
-
     private IEnumerator genBoard;
+    private int serialThird;
+    private int serialSixth;
+    private List<int> startPos = new List<int>();
+    bool thirdZero = false;
+    bool sixthZero = false;
 
     void Start()
     {
         moduleId = moduleIdCounter++;
         ClearBoard();
+        var serialNumber = Bomb.GetSerialNumber();
+        serialThird = (int)char.GetNumericValue(serialNumber[2]);
+        serialSixth = (int)char.GetNumericValue(serialNumber[5]);
+        if (serialThird == 0)
+            thirdZero = true;
+        if (serialSixth == 0)
+            sixthZero = true;
+        if (!thirdZero && !sixthZero)
+        {
+            startPos.Add((serialThird - 1) * 9 + serialSixth - 1);
+            Debug.LogFormat("[Go #{0}] The starting position is row {1}, columnn {2}.", moduleId, serialThird, serialSixth);
+        }
+        else if (thirdZero && !sixthZero)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                startPos.Add(((serialSixth - 1) * 9) + i);
+            }
+            Debug.LogFormat("[Go #{0}] The starting position is anywhere in row {1}.", moduleId, serialSixth);
+        }
+        else if (!thirdZero && sixthZero)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                startPos.Add((serialThird - 1) + (9 * i));
+            }
+            Debug.LogFormat("[Go #{0}] The starting position is anywhere in column {1}.", moduleId, serialThird);
+        }
+        else
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                startPos.Add(i);
+            }
+            Debug.LogFormat("[Go #{0}] The starting position is anywhere on the board.", moduleId);
+        }
         for (int i = 0; i < stoneSelectables.Length; i++)
         {
             int j = i;
@@ -51,8 +90,8 @@ public class GoModuleScript : MonoBehaviour
 
     void ActivateModule()
     {
-        StartCoroutine(GenerateBoard());
         WhoWins();
+        StartCoroutine(GenerateBoard());
     }
 
     void WhoWins()
@@ -75,19 +114,6 @@ public class GoModuleScript : MonoBehaviour
     void Strike()
     {
         GetComponent<KMBombModule>().HandleStrike();
-        /*/
-        for (int i = 0; i < stoneData.Length; i++)
-        {
-            if (stoneData[i] == 1)
-            {
-                stoneObjects[i].GetComponent<MeshRenderer>().material = stoneMats[3];
-            }
-            if (stoneData[i] == 2)
-            {
-                stoneObjects[i].GetComponent<MeshRenderer>().material = stoneMats[4];
-            }
-        }
-        */
         TurnDecided = false;
         StartCoroutine(ResetBoard());
     }
@@ -118,6 +144,14 @@ public class GoModuleScript : MonoBehaviour
                 if (stoneData[placedStone] != goesFirst)
                 {
                     Strike();
+                    if (stoneData[placedStone] == 1)
+                    {
+                        Debug.LogFormat("[Go #{0}] Black was chosen to go first, when white should've been chosen.  Strike.", moduleId);
+                    }
+                    if (stoneData[placedStone] == 2)
+                    {
+                        Debug.LogFormat("[Go #{0}] White was chosen to go first, when black should've been chosen.  Strike.", moduleId);
+                    }
                     for (int i = 0; i < stoneData.Length; i++)
                     {
                         if (stoneData[i] != goesFirst)
@@ -130,19 +164,15 @@ public class GoModuleScript : MonoBehaviour
                 else if (stoneData[placedStone] == 1)
                 {
                     TurnIndicator = 0;
-                    Debug.Log("black has been chosen to place first");
+                    Debug.LogFormat("[Go #{0}] Black was correctly chosen to go first.", moduleId);
                     TurnDecided = true;
                 }
                 else if (stoneData[placedStone] == 2)
                 {
                     TurnIndicator = 1;
-                    Debug.Log("white has been chosen to place first");
+                    Debug.LogFormat("[Go #{0}] White was correctly chosen to go first.", moduleId);
                     TurnDecided = true;
                 }
-            }
-            else
-            {
-                Debug.Log("didn't click stone");
             }
         }
         else
@@ -157,6 +187,39 @@ public class GoModuleScript : MonoBehaviour
                 TurnIndicator++;
 
                 var captures = FindCaptures();
+
+                if (!StartingPosPlaced)
+                {
+                    if (placedStone != startPos[0] && !thirdZero && !sixthZero && startPos.Count == 1)
+                    {
+                        Strike();
+                        var obj = stoneObjects[placedStone];
+                        obj.GetComponent<MeshRenderer>().material = stoneData[placedStone] == 1 ? stoneMats[3] : stoneMats[4];
+                        Debug.LogFormat("[Go #{0}] Starting stone was placed at ({1}, {2}), when it should've been placed at ({3}, {4}). Strike.", moduleId, ((placedStone) / 9) + 1, (placedStone % 9) + 1, serialThird, serialSixth);
+                    }
+                    else if (!thirdZero && sixthZero)
+                    {
+                        if (!startPos.Contains(placedStone))
+                        {
+                            Strike();
+                            var obj = stoneObjects[placedStone];
+                            obj.GetComponent<MeshRenderer>().material = stoneData[placedStone] == 1 ? stoneMats[3] : stoneMats[4];
+                            Debug.LogFormat("[Go #{0}] Starting stone was placed in column {1}, when it should've been placed in column {2}. Strike.", moduleId, (placedStone % 9) + 1, serialThird);
+                        }
+                    }
+                    else if (thirdZero && !sixthZero)
+                    {
+                        if (!startPos.Contains(placedStone))
+                        {
+                            Strike();
+                            var obj = stoneObjects[placedStone];
+                            obj.GetComponent<MeshRenderer>().material = stoneData[placedStone] == 1 ? stoneMats[3] : stoneMats[4];
+                            Debug.LogFormat("[Go #{0}] Starting stone was placed in row {1}, when it should've been placed in row {2}. Strike.", moduleId, (placedStone) / 9 + 1, serialSixth);
+                        }
+                    }
+                    StartingPosPlaced = true;
+                }
+                Debug.LogFormat("[Go #{0}] Placed a stone at ({1}, {2}).", moduleId, ((placedStone) / 9) + 1, (placedStone % 9) + 1);
                 if (captures.Any())
                 {
                     List<int>[] correctCaptures = captures.ToArray();
@@ -164,7 +227,7 @@ public class GoModuleScript : MonoBehaviour
                     if (captures.Count == 1 && captures[0].Contains(placedStone))
                     {
                         //self-capture with no other captures.
-                        Debug.Log("self capture");
+                        Debug.LogFormat("[Go #{0}] Placed a stone that resulted in a self-capture. Strike.", moduleId);
                         selfCapture = true;
                         Strike();
                     }
@@ -175,39 +238,47 @@ public class GoModuleScript : MonoBehaviour
                         if (stoneData[placedStone] == winner)
                         {
                             Solve();
-                            Debug.Log("Correct winner.");
+                            if (winner == 1)
+                            {
+                                Debug.LogFormat("[Go {0}] Black made the capture. Module solved!", moduleId);
+                            }
+                            else if (winner == 2)
+                            {
+                                Debug.LogFormat("[Go {0}] White made the capture. Module solved!", moduleId);
+                            }
                         }
                         else if (stoneData[placedStone] != winner)
                         {
                             Strike();
-                            Debug.Log("Wrong winner.");
+                            if (winner == 1)
+                            {
+                                Debug.LogFormat("[Go #{0}] White made the capture, when black should have captured. Strike.", moduleId);
+                            }
+                            else if (winner == 2)
+                            {
+                                Debug.LogFormat("[Go #{0}] Black made the capture, when white should have captured. Strike.", moduleId);
+                            }
                         }
                     }
                     foreach (var corrCap in correctCaptures)
                     {
                         foreach (var stone in corrCap)
                         {
-                            //Debug.Log(stone);
                             var obj = stoneObjects[stone];
                             if (stoneData[stone] != winner && !selfCapture)
                             {
                                 obj.gameObject.SetActive(false);
-                                Debug.Log(stone);
                             }
                             else
                             {
                                 obj.GetComponent<MeshRenderer>().material = stoneData[stone] == 1 ? stoneMats[3] : stoneMats[4];
-                                Debug.LogFormat("wrong: {0}", stone);
                             }
                         }
                     }
-                    Debug.LogFormat("Captures at: \n{0}", captures.Select(capture => capture.Join(", ")).Join("\n"));
-
-                    Debug.Log("Placed at " + placedStone);
                 }
                 else
                 {
-                    //Debug.Log("already placed here");
+                    //already placed here
                 }
             }
         }
@@ -252,6 +323,7 @@ public class GoModuleScript : MonoBehaviour
     IEnumerator GenerateBoard()
     {
         TryAgain:
+        StartingPosPlaced = false;
         ClearBoard();
         List<int> generatedStones = new List<int>();
         generatedStones.Clear();
@@ -259,7 +331,11 @@ public class GoModuleScript : MonoBehaviour
         for (int i = 0; i < randomStoneCount * 2;)
         {
             int randomStoneNum = Rnd.Range(0, 80);
-            if (stoneData[randomStoneNum] == 0)
+            if (randomStoneNum == startPos[0] && startPos.Count == 1)
+            {
+                //dont place here
+            }
+            else if (stoneData[randomStoneNum] == 0)
             {
                 if (i % 2 == 0)
                 {
@@ -278,171 +354,6 @@ public class GoModuleScript : MonoBehaviour
         {
             goto TryAgain;
         }
-        else
-        {
-            WhoGoesFirst();
-            generatedStones.Sort();
-            for (int i = 0; i < generatedStones.Count; i++)
-            {
-                var stone = generatedStones[i];
-                if (stoneData[stone] == 1)
-                {
-                    stoneObjects[stone].SetActive(true);
-                    stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[1];
-                    yield return new WaitForSeconds(0.05f);
-                }
-                if (stoneData[stone] == 2)
-                {
-                    stoneObjects[stone].SetActive(true);
-                    stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[2];
-                    yield return new WaitForSeconds(0.05f);
-                }
-            }
-            allowedToPlace = true;
-        }
-    }
-
-
-
-    void LogBoard(int[] StonesLog)
-    {
-        StringBuilder s = new StringBuilder("");
-        int k = 0;
-        for (int i = 0; i < 17; i++)
-        {
-            s.Append("\n");
-            for (int j = 0; j < 17; j++)
-            {
-                if (i == 0)
-                {
-                    if (j == 0)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("┌");
-                        k++;
-                    }
-                    else if (j % 2 == 0 && j != 16)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("┬");
-                        k++;
-                    }
-                    else if (j == 16)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("┐");
-                        k++;
-                    }
-                    else
-                    {
-                        s.Append("───");
-                    }
-                }
-                else if (i % 2 == 0 && i != 16)
-                {
-                    if (j == 0)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("├");
-                        k++;
-                    }
-                    else if (j == 16)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("┤");
-                        k++;
-                    }
-                    else if (j % 2 == 0)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("┼");
-                        k++;
-                    }
-                    else
-                    {
-                        s.Append("───");
-                    }
-                }
-                else if (i == 16)
-                {
-                    if (j == 0)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("└");
-                        k++;
-                    }
-                    else if (j == 16)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("┘");
-                        k++;
-                    }
-                    else if (j % 2 == 0)
-                    {
-                        if (stoneData[k] == 1)
-                            s.Append("B");
-                        else if (stoneData[k] == 2)
-                            s.Append("W");
-                        else
-                            s.Append("┴");
-                        k++;
-                    }
-                    else
-                    {
-                        s.Append("───");
-                    }
-                }
-                else
-                {
-                    if (j % 2 == 0)
-                    {
-                        s.Append("│");
-                    }
-                    else
-                    {
-                        s.Append("   ");
-                    }
-                }
-            }
-        }
-        String str = s.ToString();
-        Debug.LogFormat("[Go #{0}] Board:\n{1}", moduleId, str);
-    }
-
-    void WhoGoesFirst()
-    {
         int blackCount = 0;
         int whiteCount = 0;
         for (int i = 0; i < 9; i++)
@@ -465,31 +376,89 @@ public class GoModuleScript : MonoBehaviour
         if (blackCount > whiteCount)
         {
             goesFirst = 1;
-            LogBoard(stoneData);
-            Debug.LogFormat("[Go #{0}] The border contains more black pieces than white pieces.  Black goes first.", moduleId);
-            //Debug.Log("black goes first");
+            //black goes first
         }
         else if (whiteCount > blackCount)
         {
             goesFirst = 2;
-            LogBoard(stoneData);
-            Debug.LogFormat("[Go #{0}] The border contains more white pieces than black pieces.  White goes first.", moduleId);
-            //Debug.Log("white goes first");
+            //white goes first
         }
         else
         {
-            //Debug.Log("equal");
-            foreach (var stone in stoneObjects)
-            {
-                stone.SetActive(false);
-            }
-            if (genBoard != null)
-            {
-                StopCoroutine(genBoard);
-            }
-            genBoard = GenerateBoard();
-            StartCoroutine(genBoard);
+            //same border count
+            goto TryAgain;
         }
+        if (startPos.Count == 1)
+        {
+            stoneData[startPos[0]] = goesFirst;
+        }
+        if (FindCaptures().Any())
+        {
+            goto TryAgain;
+        }
+        if (startPos.Count == 1)
+        {
+            stoneData[startPos[0]] = 0;
+        }
+        LogBoard();
+        if (goesFirst == 1)
+        {
+            Debug.LogFormat("[Go #{0}] The border contains more black pieces than white pieces.  Black goes first.", moduleId);
+        }
+        else
+        {
+            Debug.LogFormat("[Go #{0}] The border contains more white pieces than black pieces.  White goes first.", moduleId);
+        }
+
+        generatedStones.Sort();
+        for (int i = 0; i < generatedStones.Count; i++)
+        {
+            var stone = generatedStones[i];
+            if (stoneData[stone] == 1)
+            {
+                stoneObjects[stone].SetActive(true);
+                stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[1];
+                yield return new WaitForSeconds(0.05f);
+            }
+            if (stoneData[stone] == 2)
+            {
+                stoneObjects[stone].SetActive(true);
+                stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[2];
+                yield return new WaitForSeconds(0.05f);
+            }
+        }
+        allowedToPlace = true;
+    }
+
+    void LogBoard()
+    {
+        var svg = new StringBuilder();
+        for (int i = 0; i < 9; i++)
+        {
+            svg.AppendFormat(@"<line x1='{0}' y1='{1}' x2='{2}' y2='{3}' />", 0, i, 8, i);
+            svg.AppendFormat(@"<line x1='{0}' y1='{1}' x2='{2}' y2='{3}' />", i, 0, i, 8);
+        }
+        svg.AppendFormat(@"<circle fill='black' cx='2' cy='2' r='.1' />");
+        svg.AppendFormat(@"<circle fill='black' cx='4' cy='4' r='.1' />");
+        svg.AppendFormat(@"<circle fill='black' cx='6' cy='6' r='.1' />");
+        svg.AppendFormat(@"<circle fill='black' cx='2' cy='6' r='.1' />");
+        svg.AppendFormat(@"<circle fill='black' cx='6' cy='2' r='.1' />");
+        for (int i = 0; i < 9; i++)
+        {
+            for (int j = 0; j < 9; j++)
+            {
+                if (stoneData[i * 9 + j] != 0)
+                {
+                    svg.AppendFormat(@"<circle fill='{0}' cx='{1}' cy='{2}' r='.4' />", stoneData[i * 9 + j] == 1 ? "black" : "white", j, i);
+                }
+            }
+        }
+        Debug.LogFormat(@"[Go #{0}]=svg[Board:]<svg xmlns='http://www.w3.org/2000/svg' viewBox='-.5 -.5 9 9' stroke='black' stroke-width='.05'>{1}</svg>", moduleId, svg.ToString());
+    }
+
+    void WhoGoesFirst()
+    {
+
     }
 
     List<List<int>> FindCaptures()

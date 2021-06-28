@@ -1533,22 +1533,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!1 &1303839639657642
-GameObject:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  serializedVersion: 5
-  m_Component:
-  - component: {fileID: 4138410364750984}
-  - component: {fileID: 114011079790226388}
-  m_Layer: 0
-  m_Name: StatusLight
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
 --- !u!1 &1317614901705700
 GameObject:
   m_ObjectHideFlags: 1
@@ -5481,19 +5465,6 @@ Transform:
   m_Father: {fileID: 4439654900460774}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!4 &4138410364750984
-Transform:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1303839639657642}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.075167, y: 0.014553899, z: 0.076057}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
-  m_Father: {fileID: 4304561976804814}
-  m_RootOrder: 1
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &4140348036531628
 Transform:
   m_ObjectHideFlags: 1
@@ -5602,7 +5573,7 @@ Transform:
   - {fileID: 4798469362659278}
   - {fileID: 4311043316687786}
   m_Father: {fileID: 4304561976804814}
-  m_RootOrder: 3
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &4155522254910042
 Transform:
@@ -6288,7 +6259,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 4762698133847934}
-  - {fileID: 4138410364750984}
   - {fileID: 4486061407545758}
   - {fileID: 4150391284012530}
   m_Father: {fileID: 4629416634457990}
@@ -7062,7 +7032,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 4304561976804814}
-  m_RootOrder: 2
+  m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &4490866441794764
 Transform:
@@ -18927,17 +18897,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   HighlightScale: {x: 1, y: 1, z: 1}
   OutlineAmount: 0
---- !u!114 &114011079790226388
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1303839639657642}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: -381104716, guid: 45b809be76fd7a3468b6f517bced6f28, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &114011546170718464
 MonoBehaviour:
   m_ObjectHideFlags: 1
