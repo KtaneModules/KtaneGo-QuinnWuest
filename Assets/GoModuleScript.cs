@@ -48,8 +48,8 @@ public class GoModuleScript : MonoBehaviour
             sixthZero = true;
         if (!thirdZero && !sixthZero)
         {
-            startPos.Add((serialThird - 1) * 9 + serialSixth - 1);
-            Debug.LogFormat("[Go #{0}] The starting position is row {1}, columnn {2}.", moduleId, serialThird, serialSixth);
+            startPos.Add((serialSixth - 1) * 9 + serialThird - 1);
+            Debug.LogFormat("[Go #{0}] The starting position is column {1}, row {2}. ({1}, {2})", moduleId, serialThird, serialSixth);
         }
         else if (thirdZero && !sixthZero)
         {
@@ -198,7 +198,7 @@ public class GoModuleScript : MonoBehaviour
                         Strike();
                         var obj = stoneObjects[placedStone];
                         obj.GetComponent<MeshRenderer>().material = stoneData[placedStone] == 1 ? stoneMats[3] : stoneMats[4];
-                        Debug.LogFormat("[Go #{0}] Starting stone was placed at ({1}, {2}), when it should've been placed at ({3}, {4}). Strike.", moduleId, ((placedStone) / 9) + 1, (placedStone % 9) + 1, serialThird, serialSixth);
+                        Debug.LogFormat("[Go #{0}] Starting stone was placed at ({1}, {2}), when it should've been placed at ({3}, {4}). Strike.", moduleId, ((placedStone) % 9) + 1, (placedStone / 9) + 1, serialThird, serialSixth);
                     }
                     else if (!thirdZero && sixthZero)
                     {
@@ -207,7 +207,7 @@ public class GoModuleScript : MonoBehaviour
                             Strike();
                             var obj = stoneObjects[placedStone];
                             obj.GetComponent<MeshRenderer>().material = stoneData[placedStone] == 1 ? stoneMats[3] : stoneMats[4];
-                            Debug.LogFormat("[Go #{0}] Starting stone was placed in column {1}, when it should've been placed in column {2}. Strike.", moduleId, (placedStone % 9) + 1, serialThird);
+                            Debug.LogFormat("[Go #{0}] Starting stone was placed in row {1}, when it should've been placed in row {2}. Strike.", moduleId, (placedStone / 9) + 1, serialSixth);
                         }
                     }
                     else if (thirdZero && !sixthZero)
@@ -217,12 +217,12 @@ public class GoModuleScript : MonoBehaviour
                             Strike();
                             var obj = stoneObjects[placedStone];
                             obj.GetComponent<MeshRenderer>().material = stoneData[placedStone] == 1 ? stoneMats[3] : stoneMats[4];
-                            Debug.LogFormat("[Go #{0}] Starting stone was placed in row {1}, when it should've been placed in row {2}. Strike.", moduleId, (placedStone) / 9 + 1, serialSixth);
+                            Debug.LogFormat("[Go #{0}] Starting stone was placed in column {1}, when it should've been placed in column {2}. Strike.", moduleId, placedStone % 9 + 1, serialThird);
                         }
                     }
                     StartingPosPlaced = true;
                 }
-                Debug.LogFormat("[Go #{0}] Placed a stone at ({1}, {2}).", moduleId, ((placedStone) / 9) + 1, (placedStone % 9) + 1);
+                Debug.LogFormat("[Go #{0}] Placed a stone at ({1}, {2}).", moduleId, (placedStone % 9) + 1, (placedStone / 9) + 1);
                 if (captures.Any())
                 {
                     List<int>[] correctCaptures = captures.ToArray();
@@ -279,10 +279,51 @@ public class GoModuleScript : MonoBehaviour
                         }
                     }
                 }
-                else
+            }
+            else
+            {
+                StartCoroutine(ShowTurn(TurnIndicator));
+            }
+        }
+    }
+
+    IEnumerator ShowTurn(int turn)
+    {
+        int t = turn;
+        if (t % 2 == 0)
+        {
+            for (int i = 0; i < stoneData.Length; i++)
+            {
+                if (stoneData[i] == 1)
                 {
-                    //already placed here
+                    var obj = stoneObjects[i];
+                    obj.GetComponent<MeshRenderer>().material = stoneMats[7];
                 }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < stoneData.Length; i++)
+            {
+                if (stoneData[i] == 2)
+                {
+                    var obj = stoneObjects[i];
+                    obj.GetComponent<MeshRenderer>().material = stoneMats[8];
+                }
+            }
+        }
+        yield return new WaitForSeconds(1.5f);
+        for (int i = 0; i < stoneData.Length; i++)
+        {
+            if (stoneData[i] == 1)
+            {
+                var obj = stoneObjects[i];
+                obj.GetComponent<MeshRenderer>().material = stoneMats[1];
+            }
+            if (stoneData[i] == 2)
+            {
+                var obj = stoneObjects[i];
+                obj.GetComponent<MeshRenderer>().material = stoneMats[2];
             }
         }
     }
