@@ -168,12 +168,14 @@ public class GoModuleScript : MonoBehaviour
                 {
                     TurnIndicator = 0;
                     Debug.LogFormat("[Go #{0}] Black was correctly chosen to go first.", moduleId);
+                    StartCoroutine(ShowTurn(TurnIndicator));
                     TurnDecided = true;
                 }
                 else if (stoneData[placedStone] == 2)
                 {
                     TurnIndicator = 1;
                     Debug.LogFormat("[Go #{0}] White was correctly chosen to go first.", moduleId);
+                    StartCoroutine(ShowTurn(TurnIndicator));
                     TurnDecided = true;
                 }
             }
@@ -207,7 +209,7 @@ public class GoModuleScript : MonoBehaviour
                             Strike();
                             var obj = stoneObjects[placedStone];
                             obj.GetComponent<MeshRenderer>().material = stoneData[placedStone] == 1 ? stoneMats[3] : stoneMats[4];
-                            Debug.LogFormat("[Go #{0}] Starting stone was placed in row {1}, when it should've been placed in row {2}. Strike.", moduleId, (placedStone / 9) + 1, serialSixth);
+                            Debug.LogFormat("[Go #{0}] Starting stone was placed in column {1}, when it should've been placed in column {2}. Strike.", moduleId, placedStone % 9 + 1, serialThird);
                         }
                     }
                     else if (thirdZero && !sixthZero)
@@ -217,7 +219,7 @@ public class GoModuleScript : MonoBehaviour
                             Strike();
                             var obj = stoneObjects[placedStone];
                             obj.GetComponent<MeshRenderer>().material = stoneData[placedStone] == 1 ? stoneMats[3] : stoneMats[4];
-                            Debug.LogFormat("[Go #{0}] Starting stone was placed in column {1}, when it should've been placed in column {2}. Strike.", moduleId, placedStone % 9 + 1, serialThird);
+                            Debug.LogFormat("[Go #{0}] Starting stone was placed in row {1}, when it should've been placed in row {2}. Strike.", moduleId, (placedStone / 9) + 1, serialSixth);
                         }
                     }
                     StartingPosPlaced = true;
@@ -554,7 +556,7 @@ public class GoModuleScript : MonoBehaviour
     }
 
 #pragma warning disable 0414
-    private readonly string TwitchHelpMessage = "!{0} B4 C5 [click the points in those positions; column first]";
+    private readonly string TwitchHelpMessage = "!{0} B4 C5 [click the points in those positions; column first]. Use !{0} tilt ## to see stones obstructed by TP number.";
 #pragma warning restore 0414
 
     private IEnumerator ProcessTwitchCommand(string command)
