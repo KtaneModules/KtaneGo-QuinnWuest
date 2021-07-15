@@ -40,8 +40,8 @@ public class GoModuleScript : MonoBehaviour
         moduleId = moduleIdCounter++;
         ClearBoard();
         var serialNumber = Bomb.GetSerialNumber();
-        serialThird = (int)char.GetNumericValue(serialNumber[2]);
-        serialSixth = (int)char.GetNumericValue(serialNumber[5]);
+        serialThird = (int) char.GetNumericValue(serialNumber[2]);
+        serialSixth = (int) char.GetNumericValue(serialNumber[5]);
         if (serialThird == 0)
             thirdZero = true;
         if (serialSixth == 0)
@@ -356,14 +356,12 @@ public class GoModuleScript : MonoBehaviour
                     yield return new WaitForSeconds(0.05f);
                 }
             }
+
             for (int i = 0; i < stoneData.Length; i++)
-            {
                 stoneData[i] = 0;
-            }
+
             if (genBoard != null)
-            {
                 StopCoroutine(genBoard);
-            }
             genBoard = GenerateBoard();
             StartCoroutine(genBoard);
         }
@@ -371,115 +369,67 @@ public class GoModuleScript : MonoBehaviour
 
     IEnumerator GenerateBoard()
     {
-        if (!moduleSolved)
-        {
-            TryAgain:
-            StartingPosPlaced = false;
-            ClearBoard();
-            List<int> generatedStones = new List<int>();
-            generatedStones.Clear();
-            int randomStoneCount = Rnd.Range(10, 18);
-            for (int i = 0; i < randomStoneCount * 2;)
-            {
-                int randomStoneNum = Rnd.Range(0, 80);
-                if (randomStoneNum == startPos[0] && startPos.Count == 1)
-                {
-                    //dont place here
-                }
-                else if (stoneData[randomStoneNum] == 0)
-                {
-                    if (i % 2 == 0)
-                    {
-                        stoneData[randomStoneNum] = 1;
-                        generatedStones.Add(randomStoneNum);
-                    }
-                    else
-                    {
-                        stoneData[randomStoneNum] = 2;
-                        generatedStones.Add(randomStoneNum);
-                    }
-                    i++;
-                }
-            }
-            if (FindCaptures().Any())
-            {
-                goto TryAgain;
-            }
-            int blackCount = 0;
-            int whiteCount = 0;
-            for (int i = 0; i < 9; i++)
-            {
-                for (int j = 0; j < 9; j++)
-                {
-                    if (i == 0 || i == 8 || j == 0 || j == 8)
-                    {
-                        if (stoneData[i * 9 + j] == 1)
-                        {
-                            blackCount++;
-                        }
-                        else if (stoneData[i * 9 + j] == 2)
-                        {
-                            whiteCount++;
-                        }
-                    }
-                }
-            }
-            if (blackCount > whiteCount)
-            {
-                goesFirst = 1;
-                //black goes first
-            }
-            else if (whiteCount > blackCount)
-            {
-                goesFirst = 2;
-                //white goes first
-            }
-            else
-            {
-                //same border count
-                goto TryAgain;
-            }
-            if (startPos.Count == 1)
-            {
-                stoneData[startPos[0]] = goesFirst;
-            }
-            if (FindCaptures().Any())
-            {
-                goto TryAgain;
-            }
-            if (startPos.Count == 1)
-            {
-                stoneData[startPos[0]] = 0;
-            }
-            LogBoard();
-            if (goesFirst == 1)
-            {
-                Debug.LogFormat("[Go #{0}] The border contains more black pieces than white pieces.  Black goes first.", moduleId);
-            }
-            else
-            {
-                Debug.LogFormat("[Go #{0}] The border contains more white pieces than black pieces.  White goes first.", moduleId);
-            }
+        if (moduleSolved)
+            yield break;
 
-            generatedStones.Sort();
-            for (int i = 0; i < generatedStones.Count; i++)
+        tryAgain:
+        StartingPosPlaced = false;
+        ClearBoard();
+        List<int> generatedStones = new List<int>();
+        int randomStoneCount = Rnd.Range(10, 18);
+        while (generatedStones.Count < randomStoneCount * 2)
+        {
+            int randomStoneNum = Rnd.Range(0, 80);
+            if (stoneData[randomStoneNum] == 0)
             {
-                var stone = generatedStones[i];
-                if (stoneData[stone] == 1)
-                {
-                    stoneObjects[stone].SetActive(true);
-                    stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[1];
-                    yield return new WaitForSeconds(0.05f);
-                }
-                if (stoneData[stone] == 2)
-                {
-                    stoneObjects[stone].SetActive(true);
-                    stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[2];
-                    yield return new WaitForSeconds(0.05f);
-                }
+                stoneData[randomStoneNum] = generatedStones.Count % 2 + 1;
+                generatedStones.Add(randomStoneNum);
             }
-            allowedToPlace = true;
         }
+        if (startPos.All(sp => stoneData[sp] != 0) || FindCaptures().Any())
+            goto tryAgain;
+        int blackCount = 0;
+        int whiteCount = 0;
+        for (int i = 0; i < 9; i++)
+            for (int j = 0; j < 9; j++)
+                if (i == 0 || i == 8 || j == 0 || j == 8)
+                    if (stoneData[i * 9 + j] == 1)
+                        blackCount++;
+                    else if (stoneData[i * 9 + j] == 2)
+                        whiteCount++;
+
+        if (blackCount == whiteCount)
+            goto tryAgain;
+
+        goesFirst = blackCount > whiteCount ? 1 : 2;
+
+
+        // Temporarily place a stone in the starting position to ensure that it wouldn’t cause a capture
+        if (startPos.Count == 1)
+        {
+            stoneData[startPos[0]] = goesFirst;
+            if (FindCaptures().Any())
+                goto tryAgain;
+            stoneData[startPos[0]] = 0;
+        }
+
+
+        LogBoard();
+        Debug.LogFormat("[Go #{0}] The border contains more {1} pieces than {2} pieces. {3} goes first.",
+            moduleId, goesFirst == 1 ? "black" : "white", goesFirst == 1 ? "white" : "black", goesFirst == 1 ? "Black" : "White");
+
+        generatedStones.Sort();
+        for (int i = 0; i < generatedStones.Count; i++)
+        {
+            var stone = generatedStones[i];
+            if (stoneData[stone] != 0)
+            {
+                stoneObjects[stone].SetActive(true);
+                stoneObjects[stone].GetComponent<MeshRenderer>().material = stoneMats[stoneData[stone]];
+                yield return new WaitForSeconds(0.05f);
+            }
+        }
+        allowedToPlace = true;
     }
 
     void LogBoard()
@@ -495,16 +445,12 @@ public class GoModuleScript : MonoBehaviour
         svg.AppendFormat(@"<circle fill='black' cx='6' cy='6' r='.1' />");
         svg.AppendFormat(@"<circle fill='black' cx='2' cy='6' r='.1' />");
         svg.AppendFormat(@"<circle fill='black' cx='6' cy='2' r='.1' />");
+
         for (int i = 0; i < 9; i++)
-        {
             for (int j = 0; j < 9; j++)
-            {
                 if (stoneData[i * 9 + j] != 0)
-                {
                     svg.AppendFormat(@"<circle fill='{0}' cx='{1}' cy='{2}' r='.4' />", stoneData[i * 9 + j] == 1 ? "black" : "white", j, i);
-                }
-            }
-        }
+
         Debug.LogFormat(@"[Go #{0}]=svg[Board:]<svg xmlns='http://www.w3.org/2000/svg' viewBox='-.5 -.5 9 9' stroke='black' stroke-width='.05'>{1}</svg>", moduleId, svg.ToString());
     }
 
