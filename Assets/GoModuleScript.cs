@@ -21,7 +21,6 @@ public class GoModuleScript : MonoBehaviour
     static int moduleIdCounter = 1;
     int moduleId;
     private bool allowedToPlace;
-    private int stoneNumber;
     private int winner; //1 = black, 2 = white
     private int goesFirst; //1 = black, 2 = white
     private bool TurnDecided;
@@ -34,6 +33,7 @@ public class GoModuleScript : MonoBehaviour
     bool thirdZero = false;
     bool sixthZero = false;
     bool moduleSolved = false;
+    bool isBlue = false;
 
     void Start()
     {
@@ -54,25 +54,19 @@ public class GoModuleScript : MonoBehaviour
         else if (thirdZero && !sixthZero)
         {
             for (int i = 0; i < 9; i++)
-            {
                 startPos.Add(((serialSixth - 1) * 9) + i);
-            }
             Debug.LogFormat("[Go #{0}] The starting position is anywhere in row {1}.", moduleId, serialSixth);
         }
         else if (!thirdZero && sixthZero)
         {
             for (int i = 0; i < 9; i++)
-            {
                 startPos.Add((serialThird - 1) + (9 * i));
-            }
             Debug.LogFormat("[Go #{0}] The starting position is anywhere in column {1}.", moduleId, serialThird);
         }
         else
         {
             for (int i = 0; i < 9; i++)
-            {
                 startPos.Add(i);
-            }
             Debug.LogFormat("[Go #{0}] The starting position is anywhere on the board.", moduleId);
         }
         for (int i = 0; i < stoneSelectables.Length; i++)
@@ -245,11 +239,11 @@ public class GoModuleScript : MonoBehaviour
                             Solve();
                             if (winner == 1)
                             {
-                                Debug.LogFormat("[Go {0}] Black made the capture. Module solved!", moduleId);
+                                Debug.LogFormat("[Go #{0}] Black made the capture. Module solved!", moduleId);
                             }
                             else if (winner == 2)
                             {
-                                Debug.LogFormat("[Go {0}] White made the capture. Module solved!", moduleId);
+                                Debug.LogFormat("[Go #{0}] White made the capture. Module solved!", moduleId);
                             }
                         }
                         else if (stoneData[placedStone] != winner)
@@ -291,6 +285,7 @@ public class GoModuleScript : MonoBehaviour
 
     IEnumerator ShowTurn(int turn)
     {
+        isBlue = true;
         int t = turn;
         if (t % 2 == 0)
         {
@@ -315,6 +310,9 @@ public class GoModuleScript : MonoBehaviour
             }
         }
         yield return new WaitForSeconds(1.5f);
+        isBlue = false;
+        if (moduleSolved)
+            yield break;
         for (int i = 0; i < stoneData.Length; i++)
         {
             if (stoneData[i] == 1)
@@ -404,15 +402,19 @@ public class GoModuleScript : MonoBehaviour
         goesFirst = blackCount > whiteCount ? 1 : 2;
 
 
-        // Temporarily place a stone in the starting position to ensure that it wouldn’t cause a capture
-        if (startPos.Count == 1)
+        // Temporarily place a stone in the starting positions to ensure that there’s at least one that wouldn’t cause a capture
+        var anyValid = false;
+        for (var i = 0; i < startPos.Count && !anyValid; i++)
         {
-            stoneData[startPos[0]] = goesFirst;
-            if (FindCaptures().Any())
-                goto tryAgain;
-            stoneData[startPos[0]] = 0;
+            if (stoneData[startPos[i]] != 0)
+                continue;
+            stoneData[startPos[i]] = goesFirst;
+            if (!FindCaptures().Any())
+                anyValid = true;
+            stoneData[startPos[i]] = 0;
         }
-
+        if (!anyValid)
+            goto tryAgain;
 
         LogBoard();
         Debug.LogFormat("[Go #{0}] The border contains more {1} pieces than {2} pieces. {3} goes first.",
@@ -454,51 +456,47 @@ public class GoModuleScript : MonoBehaviour
         Debug.LogFormat(@"[Go #{0}]=svg[Board:]<svg xmlns='http://www.w3.org/2000/svg' viewBox='-.5 -.5 9 9' stroke='black' stroke-width='.05'>{1}</svg>", moduleId, svg.ToString());
     }
 
-    List<List<int>> FindCaptures()
+    private List<List<int>> FindCaptures()
     {
-        List<List<int>> Clumps = new List<List<int>>();
+        return FindClumps().Where(clump => clump.All(stone => GetAdjacents(stone).All(adj => stoneData[adj] != 0))).ToList();
+    }
+
+    private List<List<int>> FindClumps()
+    {
+        List<List<int>> clumps = new List<List<int>>();
         for (int i = 0; i < stoneData.Length; i++)
         {
             if (stoneData[i] != 0)
             {
                 var candidateClumps = GetAdjacents(i)
                     .Where(adj => stoneData[i] == stoneData[adj])
-                    .Select(adj => Clumps.FirstOrDefault(clump => clump.Contains(adj)))
+                    .Select(adj => clumps.FirstOrDefault(clump => clump.Contains(adj)))
                     .Where(clump => clump != null)
                     .ToArray();
                 var newClump = new List<int>();
                 foreach (var clump in candidateClumps)
                 {
-                    Clumps.Remove(clump);
+                    clumps.Remove(clump);
                     newClump.AddRange(clump);
                 }
                 newClump.Add(i);
-                Clumps.Add(newClump);
+                clumps.Add(newClump);
             }
         }
-        return Clumps
-            .Where(clump => clump.All(stone => GetAdjacents(stone).All(adj => stoneData[adj] != 0)))
-            .ToList();
+
+        return clumps;
     }
 
     IEnumerable<int> GetAdjacents(int stone)
     {
         if (stone / 9 > 0)
-        {
             yield return stone - 9;
-        }
         if (stone / 9 < 8)
-        {
             yield return stone + 9;
-        }
         if (stone % 9 > 0)
-        {
             yield return stone - 1;
-        }
         if (stone % 9 < 8)
-        {
             yield return stone + 1;
-        }
     }
 
 #pragma warning disable 0414
@@ -521,5 +519,75 @@ public class GoModuleScript : MonoBehaviour
         }
         if (btns.Count > 0)
             yield return btns;
+    }
+
+    private IEnumerator TwitchHandleForcedSolve()
+    {
+        while (!TurnDecided)
+        {
+            while (!allowedToPlace || isBlue)
+                yield return true;
+
+            var pos = Enumerable.Range(0, 81).Where(ix => stoneData[ix] == goesFirst).First();
+            stoneSelectables[pos].OnInteract();
+            yield return new WaitForSeconds(.1f);
+        }
+
+        while (!StartingPosPlaced)
+        {
+            while (!allowedToPlace || isBlue)
+                yield return true;
+
+            // Temporarily place a stone in the starting positions to find one that wouldn’t cause a capture
+            var sp = -1;
+            for (var i = 0; i < startPos.Count && sp == -1; i++)
+            {
+                if (stoneData[startPos[i]] != 0)
+                    continue;
+                stoneData[startPos[i]] = goesFirst;
+                if (!FindCaptures().Any())
+                    sp = startPos[i];
+                stoneData[startPos[i]] = 0;
+            }
+
+            stoneSelectables[sp].OnInteract();
+            yield return new WaitForSeconds(.1f);
+        }
+
+        while (!moduleSolved)
+        {
+            while (!allowedToPlace || isBlue)
+                yield return true;
+
+            // Is it my turn?
+            var currentPlayer = TurnIndicator % 2 + 1;
+            var possibleCaptures = FindClumps().Where(cl => cl[0] != currentPlayer).Select(cl => cl.SelectMany(cell => GetAdjacents(cell)).Where(cell => stoneData[cell] == 0).Distinct().ToArray());
+            if (currentPlayer == winner)
+            {
+                // Find the clump that requires the fewest stones to turn into a capture and place one of those stones
+                foreach (var capture in possibleCaptures.OrderBy(sh => sh.Length))
+                {
+                    // Tentatively place this stone to see whether it would result in a capture
+                    stoneData[capture[0]] = winner;
+                    var captures = FindCaptures();
+                    var hasSelfCapture = captures.Any(c => c[0] == winner);
+                    stoneData[capture[0]] = 0;
+                    if (hasSelfCapture)
+                        continue;
+                    stoneSelectables[capture[0]].OnInteract();
+                    yield return new WaitForSeconds(.1f);
+                    goto okay;
+                }
+                throw new InvalidOperationException();
+            }
+            else
+            {
+                // Place a stone in any random location that won’t result in a capture
+                stoneSelectables[Enumerable.Range(0, 81).Where(cell => stoneData[cell] == 0 && !possibleCaptures.Any(p => p.Length == 1 && p[0] == cell)).PickRandom()].OnInteract();
+                yield return new WaitForSeconds(.1f);
+            }
+
+            okay:;
+        }
     }
 }
