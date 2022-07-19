@@ -218,7 +218,7 @@ public class GoModuleScript : MonoBehaviour
                     }
                     StartingPosPlaced = true;
                 }
-                Debug.LogFormat("[Go #{0}] Placed a stone at ({1}, {2}).", moduleId, (placedStone % 9) + 1, (placedStone / 9) + 1);
+                Debug.LogFormat("[Go #{0}] Placed a {3} stone at ({1}, {2}).", moduleId, (placedStone % 9) + 1, (placedStone / 9) + 1, currentPlayer == 1 ? "black" : "white");
                 if (captures.Any())
                 {
                     List<int>[] correctCaptures = captures.ToArray();
@@ -561,7 +561,7 @@ public class GoModuleScript : MonoBehaviour
 
             // Is it my turn?
             var currentPlayer = TurnIndicator % 2 + 1;
-            var possibleCaptures = FindClumps().Where(cl => cl[0] != currentPlayer).Select(cl => cl.SelectMany(cell => GetAdjacents(cell)).Where(cell => stoneData[cell] == 0).Distinct().ToArray());
+            var possibleCaptures = FindClumps().Where(cl => stoneData[cl[0]] != currentPlayer).Select(cl => cl.SelectMany(cell => GetAdjacents(cell)).Where(cell => stoneData[cell] == 0).Distinct().ToArray());
             if (currentPlayer == winner)
             {
                 // Find the clump that requires the fewest stones to turn into a capture and place one of those stones
@@ -570,7 +570,7 @@ public class GoModuleScript : MonoBehaviour
                     // Tentatively place this stone to see whether it would result in a capture
                     stoneData[capture[0]] = winner;
                     var captures = FindCaptures();
-                    var hasSelfCapture = captures.Any(c => c[0] == winner);
+                    var hasSelfCapture = captures.Any(c => stoneData[c[0]] == winner);
                     stoneData[capture[0]] = 0;
                     if (hasSelfCapture)
                         continue;
@@ -583,8 +583,21 @@ public class GoModuleScript : MonoBehaviour
             else
             {
                 // Place a stone in any random location that won’t result in a capture
-                stoneSelectables[Enumerable.Range(0, 81).Where(cell => stoneData[cell] == 0 && !possibleCaptures.Any(p => p.Length == 1 && p[0] == cell)).PickRandom()].OnInteract();
-                yield return new WaitForSeconds(.1f);
+                var candidates = Enumerable.Range(0, 81).Where(cell => stoneData[cell] == 0 && !possibleCaptures.Any(p => p.Length == 1 && p[0] == cell)).ToArray().Shuffle();
+                foreach (var candidate in candidates)
+                {
+                    // Make sure we don’t self-capture
+                    stoneData[candidate] = currentPlayer;
+                    var captures = FindCaptures();
+                    var hasSelfCapture = captures.Any(c => stoneData[c[0]] != currentPlayer);
+                    stoneData[candidate] = 0;
+                    if (hasSelfCapture)
+                        continue;
+
+                    stoneSelectables[candidate].OnInteract();
+                    yield return new WaitForSeconds(.1f);
+                    goto okay;
+                }
             }
 
             okay:;
