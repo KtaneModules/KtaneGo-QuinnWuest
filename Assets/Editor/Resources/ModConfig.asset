@@ -15,7 +15,7 @@ MonoBehaviour:
   title: Go
   author: Quinn Wuest
   description: "It's best you... go... defuse this bomb...?\n\nMade by Quinn Wuest\n\n[url=https://ktane.timwi.de/HTML/Go.html]Manual
-    HTML[/url]\r\n[url=https://ktane.timwi.de/HTML/Go.pdf]Manual PDF[/url]"
+    HTML[/url]\r\n[url=https://ktane.timwi.de/PDF/Go.pdf]Manual PDF[/url]"
   version: 1.0
   outputFolder: build
   previewImage: {fileID: 2800000, guid: cd4afe6c7833ca847bbf761f3ec2daf2, type: 3}
